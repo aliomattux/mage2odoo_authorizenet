@@ -13,11 +13,16 @@ class MageIntegrator(osv.osv_memory):
 	Set the card information on an a sales order
 	"""
 
-        sale_order = super(MageIntegrator, self).process_one_order(cr, uid, job, order, storeview, defaults, mappinglines)
+        sale_order = super(MageIntegrator, self).process_one_order(cr, uid, job, order, \
+		storeview, defaults, mappinglines)
+
+	#Authnet method is a flag set on payment method object
+	#signaling its a credit card payment from authorize.net
         if sale_order.payment_method and sale_order.payment_method.authnet_method:
 	    payment = order.get('payment')
 	    if payment and payment['additional_information']:
 		card_data = payment['additional_information']
+
 		profile_data = {
 				'partner': sale_order.partner_id.id,
 				'card_number': card_data['acc_number'],
@@ -26,7 +31,10 @@ class MageIntegrator(osv.osv_memory):
 				'card_type': self.get_card_type(card_data['card_type']),
 				'expiration_date': payment['cc_exp_year'] + '-' + payment['cc_exp_month'],
 		}
-	    	sale_order.payment_profile = self.get_or_create_payment_profile(cr, uid, profile_data, card_data['customer_id'], card_data['profile_id'])
+
+	    	sale_order.payment_profile = self.get_or_create_payment_profile(cr, uid, \
+			profile_data, card_data['customer_id'], card_data['profile_id'])
+
 		sale_order.payment_auth_code = card_data['approval_code']
 		sale_order.authorization_amount = card_data['amount']
 		sale_order.payment_transaction_id = card_data['transaction_id']
@@ -68,6 +76,7 @@ class MageIntegrator(osv.osv_memory):
 	    return profile_obj.create(cr, uid, profile_data)
 
 
+	#TODO: Determine best course of action in this case, which may likely happen
 	else:
 	    print 'PROFILE ID', partner.customer_profile_id
 	    print 'DATA PROFILE ID', customer_profile_id
