@@ -26,6 +26,9 @@ class MageIntegrator(osv.osv_memory):
 		profile_data = {
 				'partner': sale_order.partner_id.id,
 				'card_number': card_data['acc_number'],
+				'customer_profile_id': card_data['profile_id'],
+				'customer_id': card_data['customer_id'],
+				'profile_description': 'Web Token',
 				'payment_type': 'creditcard',
 				'profile': card_data['payment_id'],
 				'card_type': self.get_card_type(card_data['card_type']),
@@ -33,7 +36,7 @@ class MageIntegrator(osv.osv_memory):
 		}
 
 	    	sale_order.payment_profile = self.get_or_create_payment_profile(cr, uid, \
-			profile_data, card_data['customer_id'], card_data['profile_id'])
+			profile_data, sale_order)
 
 		sale_order.payment_auth_code = card_data['approval_code']
 		sale_order.authorization_amount = card_data['amount']
@@ -42,7 +45,6 @@ class MageIntegrator(osv.osv_memory):
 
 
 	return sale_order
-
 
 
     def get_card_type(self, ctype):
@@ -56,35 +58,15 @@ class MageIntegrator(osv.osv_memory):
 	return ref_dict[ctype]
 
 
-    def get_or_create_payment_profile(self, cr, uid, profile_data, customer_id, customer_profile_id):
+    def get_or_create_payment_profile(self, cr, uid, profile_data, sale):
 	profile_obj = self.pool.get('payment.profile')
 	partner_obj = self.pool.get('res.partner')
 
+	#If a profile with this id exists return it
 	profile_ids = profile_obj.search(cr, uid, [('profile', '=', profile_data['profile'])])
 	if profile_ids:
 	    return profile_ids[0]
 
-
-	partner = partner_obj.browse(cr, uid, profile_data['partner'])
-
-	if partner.customer_profile_id and str(partner.customer_profile_id) == customer_profile_id:
-	    return profile_obj.create(cr, uid, profile_data)
-
-	elif not partner.customer_profile_id:
-	    partner.customer_profile_id = customer_profile_id
-	    partner.customer_id = customer_id
-	    return profile_obj.create(cr, uid, profile_data)
-
-
-	#TODO: Determine best course of action in this case, which may likely happen
 	else:
-	    print 'PROFILE ID', partner.customer_profile_id
-	    print 'DATA PROFILE ID', customer_profile_id
-	    print type(partner.customer_profile_id)
-	    print type(customer_profile_id)
-	    print profile_data
-	    print 'Customer has profile and it doesnt match whats in Magento'
-	    raise
-
-
+	    return profile_obj.create(cr, uid, profile_data)
 
