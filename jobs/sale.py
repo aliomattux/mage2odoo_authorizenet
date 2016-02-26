@@ -8,7 +8,7 @@ class MageIntegrator(osv.osv_memory):
 
 
 
-    def process_one_order(self, cr, uid, job, order, storeview, defaults=False, mappinglines=False):
+    def process_one_order(self, cr, uid, job, order, storeview, payment_defaults, defaults=False, mappinglines=False):
 	"""
 	Set the card information on an a sales order
 	"""
@@ -38,10 +38,24 @@ class MageIntegrator(osv.osv_memory):
 	    	sale_order.payment_profile = self.get_or_create_payment_profile(cr, uid, \
 			profile_data, sale_order)
 
-		sale_order.payment_auth_code = card_data['approval_code']
-		sale_order.authorization_amount = card_data['amount']
-		sale_order.payment_transaction_id = card_data['transaction_id']
-		sale_order.auth_type = card_data['transaction_type']
+
+		auth_obj = self.pool.get('authorizenet.authorizations')
+                vals = {
+                        'sale': sale_order.id,
+                        'transaction_id': card_data['transaction_id'],
+                        'payment_profile': sale_order.payment_profile.id,
+			'auth_status': 'capture' if card_data.get('transaction_type') == 'auth_capture' else 'auth',
+                        'card_number': card_data['acc_number'],
+                        'authorization_code': card_data.get('approval_code') or card_data.get('auth_code'),
+                        'amount': card_data['amount'],
+                }
+
+                i = auth_obj.create(cr, uid, vals)
+
+#		sale_order.payment_auth_code = card_data.get('approval_code') or card_data.get('auth_code')
+#		sale_order.authorization_amount = card_data['amount']
+#		sale_order.payment_transaction_id = card_data['transaction_id']
+#		sale_order.auth_type = card_data['transaction_type']
 
 
 	return sale_order
@@ -52,7 +66,8 @@ class MageIntegrator(osv.osv_memory):
 		    'MasterCard': 'mc',
 		    'Visa': 'visa',
 		    'American Express': 'amex',
-		    'Discover': 'disc'
+		    'Discover': 'disc',
+		    'AmericanExpress': 'amex',
 	}
 
 	return ref_dict[ctype]
